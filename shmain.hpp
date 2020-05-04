@@ -143,8 +143,7 @@ struct mainsh{
         std::string str_dir = std::string(dir).substr(0, strlen(dir)-1);
         std::string str_name = std::string(client_name).substr(0, strlen(client_name)-1);
         std::string str_hostname = std::string(client_hostname).substr(0, strlen(client_hostname)-1);
-        // do something about write-protected directory (IMPORTANT)
-
+     
         while(true){
             std::cout << str_name << "@" << str_hostname << ":" << str_dir << "$ ";
             std::getline(std::cin, cmd);
