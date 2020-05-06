@@ -10,7 +10,6 @@
 #include <cstring>
 #include <vector>
 #include <ctime>
-#include <termios.h> // used to disable echo for safe password input
 
 //NETWORKING
 #include <unistd.h>
