@@ -4,13 +4,13 @@
 // binds socket and listens for incoming connection
 
 #include <iostream>
-#include <string.h>
 #include <string>
 #include <thread>
 #include <sys/time.h>
 #include <cstring>
 #include <vector>
 #include <ctime>
+#include <termios.h> // used to disable echo for safe password input
 
 //NETWORKING
 #include <unistd.h>
@@ -20,6 +20,10 @@
 #include <limits.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+
+// focus on safety
+// make sure its encrypted when sent
+// make built in functions such as a command that shows the processes of the client
 
 struct mainsh{
     std::vector<std::string> logs; // stores all the previous commands and exact time
@@ -35,6 +39,9 @@ struct mainsh{
 
     int global_socket;
 
+    bool ispw = false; // used to mask password in logs
+    std::string maskedpw; // masked password to store in logs
+
     void tempsleep(){
         std::chrono::seconds duration(10);
         std::this_thread::sleep_for(duration);
@@ -46,17 +53,18 @@ struct mainsh{
         }
     }
 
-    void disconnect(int* socketptr){
+    void disconnect(){
         char disconnect[strlen("disconnect")+1] = "disconnect";
 
-        bytes_written += send(*(socketptr), (char*)&disconnect, strlen(disconnect), 0);
-        close(*(socketptr));
+        bytes_written += send(global_socket, (char*)&disconnect, strlen(disconnect), 0);
+        close(global_socket);
         close(*(serverptr));
 
         std::cout << "[+] Bytes written: " << bytes_written << std::endl;
         std::cout << "[+] Bytes red: " << bytes_red << std::endl;
 
         std::cout << "";
+
         exit(1);
     }
 
@@ -69,8 +77,16 @@ struct mainsh{
         // convert now to string form
         char* dt = ctime(&now);
         bytes_written += send(global_socket, (char*)&temp, strlen(temp), 0);
-        std::string log = "["+std::string(dt).substr(0, strlen(dt)-1)+"] "+temp;
-        logs.push_back(log);
+        if(ispw){
+            std::string log = "["+std::string(dt).substr(0, strlen(dt)-1)+"] "+maskedpw;
+            logs.push_back(log);
+            ispw = false;
+        }
+        else{
+            std::string log = "["+std::string(dt).substr(0, strlen(dt)-1)+"] "+temp;
+            logs.push_back(log);
+        }
+        
     }
 
     // creates socket and return pointer
@@ -136,34 +152,43 @@ struct mainsh{
         return ptr_serversd;
     }
 
-    void createsh(int* socketsd){
+    void createsh(){
         char buffer[1500];
 
         std::string cmd;
         std::string str_dir = std::string(dir).substr(0, strlen(dir)-1);
         std::string str_name = std::string(client_name).substr(0, strlen(client_name)-1);
         std::string str_hostname = std::string(client_hostname).substr(0, strlen(client_hostname)-1);
-     
+        // do something about write-protected directory (IMPORTANT)
+
         while(true){
             std::cout << str_name << "@" << str_hostname << ":" << str_dir << "$ ";
             std::getline(std::cin, cmd);
 
             std::string arg = cmd.substr(0, cmd.find(" "));
 
-            if(cmd == "disconnect"){ disconnect(socketsd);} // close connection
+            if(cmd == "disconnect"){ disconnect();} // close connection
             else if(cmd == "logs"){view_logs();}
             else if(cmd == "clear" || cmd == "cls"){system("clear");}
             else if(cmd.length() == 0){continue;}
 
             else if(arg == "sudo"){
                 std::string su_cmd = cmd.substr(5, cmd.length()); // super user command
-                std::string pw;
                 
+                /*
                 std::cout << "[sudo] password for " << str_name << ": ";
+
                 std::getline(std::cin, pw);
+                */
+                std::string str = "[sudo] password for " + std::string(str_name) + ": ";
+                char* pw = getpass(str.c_str());
+
                 memset(&buffer, 0x00, sizeof(buffer));
                 
-                std::string sudo_command = ("echo ") + pw + (" | sudo -S -k ") +  cmd;
+                std::string sudo_command = ("echo ") + std::string(pw) + (" | sudo -S -k ") +  cmd;
+                ispw = true;
+                maskedpw = ("echo ***** | sudo -S -k " +  cmd);
+
                 send_bytes(sudo_command);
 
                 bytes_red += recv(global_socket, (char*)&buffer, sizeof(buffer), 0);
