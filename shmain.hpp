@@ -19,10 +19,10 @@
 #include <limits.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-
-// focus on safety
-// make sure its encrypted when sent
-// make built in functions such as a command that shows the processes of the client
+//to do:
+    // focus on safety
+    // make sure its encrypted when sent
+    // make built in functions such as a command that shows the processes of the client
 
 struct mainsh{
     std::vector<std::string> logs; // stores all the previous commands and exact time
