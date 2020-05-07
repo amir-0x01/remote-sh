@@ -90,7 +90,7 @@ struct mainsh{
     }
 
     void tempsleep(){
-        std::chrono::seconds duration(10);
+        std::chrono::seconds duration(5);
         std::this_thread::sleep_for(duration);
     }
 
