@@ -94,11 +94,6 @@ struct secondsh{
  
     }
 
-    void tempsleep(){
-        std::chrono::seconds duration(10);
-        std::this_thread::sleep_for(duration);
-    }
-
     int* connect_socket(unsigned int PORT, const std::string hostname){
         char buffer[1500];
 
@@ -115,7 +110,8 @@ struct secondsh{
         //try to connect...
         int bind_status = connect(client_sd, (sockaddr*) &send_sock_addr, sizeof(send_sock_addr));
         if(bind_status < 0){
-            tempsleep();
+            std::chrono::seconds duration(5);
+            std::this_thread::sleep_for(duration);
             connect_socket(PORT, hostname);
         }
 
