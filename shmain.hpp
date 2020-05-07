@@ -10,6 +10,7 @@
 #include <cstring>
 #include <vector>
 #include <ctime>
+#include <map>
 
 //NETWORKING
 #include <unistd.h>
@@ -19,10 +20,6 @@
 #include <limits.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-//to do:
-    // focus on safety
-    // make sure its encrypted when sent
-    // make built in functions such as a command that shows the processes of the client
 
 struct mainsh{
     std::vector<std::string> logs; // stores all the previous commands and exact time
@@ -41,6 +38,57 @@ struct mainsh{
     bool ispw = false; // used to mask password in logs
     std::string maskedpw; // masked password to store in logs
 
+    std::string alphabet = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+    std::string str = "gjewklmzusnvqpycthrifxbdao DWKISFOGNUQZXBYCEVRLMAHPJT6547812390";
+
+    // this encryption method is designed to provide a basic layer of security against packet sniffing
+    // without encryption everyone could see the data sent (which includes password)
+    std::string ncrypt(std::string target){
+        std::string encrypted;
+        std::map <char, char> nmap;
+        int pos = 0;
+
+        for(char c : alphabet){
+            nmap[c] = str.at(pos);
+            pos++;
+            
+        }
+        const char* quote = "'";
+        for(char l : target){
+            if((int) nmap[l] == 0 && l != *quote){encrypted.push_back(l);}
+
+            else{encrypted.push_back(nmap[l]);}
+            
+        }
+        return encrypted;
+
+    }
+
+    std::string dcrypt(std::string target){
+        std::string decrypted;
+        std::map <char, char> nmap;
+        int pos = 0;
+
+        for(char c : str){
+            nmap[c] = alphabet.at(pos);
+            pos++;
+            
+        }
+
+        const char* quote = "'";
+        for(char l : target){
+            
+            if((int)l == 0){decrypted.push_back(*quote);}
+
+            else if((int) nmap[l] == 0){decrypted.push_back(l);}
+            
+            else{decrypted.push_back(nmap[l]);} 
+        }
+
+        return decrypted;
+    
+    }
+
     void tempsleep(){
         std::chrono::seconds duration(10);
         std::this_thread::sleep_for(duration);
@@ -53,7 +101,9 @@ struct mainsh{
     }
 
     void disconnect(){
-        char disconnect[strlen("disconnect")+1] = "disconnect";
+        char disconnect[strlen("disconnect")+1];
+        std::string ndisc = ncrypt("disconnect");
+        strcpy(disconnect, ndisc.c_str());
 
         bytes_written += send(global_socket, (char*)&disconnect, strlen(disconnect), 0);
         close(global_socket);
@@ -69,22 +119,19 @@ struct mainsh{
 
     void send_bytes(std::string buffer){
         char temp[buffer.length()+1];
-        strcpy(temp, buffer.c_str());
+        strcpy(temp, ncrypt(buffer).c_str());
         // current date/time based on current system
         time_t now = time(0);
    
         // convert now to string form
         char* dt = ctime(&now);
         bytes_written += send(global_socket, (char*)&temp, strlen(temp), 0);
+        std::string timer = "["+std::string(dt).substr(0, strlen(dt)-1)+"] ";
         if(ispw){
-            std::string log = "["+std::string(dt).substr(0, strlen(dt)-1)+"] "+maskedpw;
-            logs.push_back(log);
+            logs.push_back(timer + dcrypt(maskedpw));
             ispw = false;
         }
-        else{
-            std::string log = "["+std::string(dt).substr(0, strlen(dt)-1)+"] "+temp;
-            logs.push_back(log);
-        }
+        else{logs.push_back(timer + dcrypt(temp));}
         
     }
 
@@ -130,17 +177,20 @@ struct mainsh{
         struct timeval start1, end1;
         gettimeofday(&start1, NULL);
 
-        memset(client_name, '\0', 30);
-        memset(client_hostname, '\0', 30);
+        memset(client_name, '\0', sizeof(client_name));
+        memset(client_hostname, '\0', sizeof(client_hostname));
 
-        /*
-        std::string str_chostname = std::string(client_hostname).substr(0, strlen(client_hostname)-1);
-        std::string str_cname = std::string(client_name).substr(0, strlen(client_name)-1);
-        */
+        char temp_name[30];
+        char temp_hostname[30];
+        char temp_dir[30];
 
-        bytes_red += recv(new_server_sd, (char*)&client_name, sizeof(client_name), 0); // account
-        bytes_red += recv(new_server_sd, (char*)&client_hostname, sizeof(client_hostname), 0); // hostname
-        bytes_red += recv(new_server_sd, (char*)&dir, sizeof(dir), 0); // directory
+        bytes_red += recv(new_server_sd, (char*)&temp_name, sizeof(temp_name), 0); // account
+        bytes_red += recv(new_server_sd, (char*)&temp_hostname, sizeof(temp_hostname), 0); // hostname
+        bytes_red += recv(new_server_sd, (char*)&temp_dir, sizeof(temp_dir), 0); // directory
+        //dcrypt buffers
+        strcpy(client_name, dcrypt(temp_name).c_str());
+        strcpy(client_hostname, dcrypt(temp_hostname).c_str());
+        strcpy(dir, dcrypt(temp_dir).c_str());
 
         std::cout << "[+] received connection from " <<  std::string(client_hostname).substr(0, strlen(client_hostname)-1) << std::endl;
         
@@ -191,7 +241,7 @@ struct mainsh{
                 send_bytes(sudo_command);
 
                 bytes_red += recv(global_socket, (char*)&buffer, sizeof(buffer), 0);
-                std::cout << buffer << std::endl;
+                std::cout << dcrypt(std::string(buffer)) << std::endl;
 
             }
 
@@ -214,7 +264,8 @@ struct mainsh{
                 send_bytes(ncmd);
                 
                 bytes_red += recv(global_socket, (char*)&buffer, sizeof(buffer), 0);
-                std::cout << std::string(buffer).substr(0, strlen(buffer)-1) << std::endl;
+                std::string tempbuff = std::string(buffer).substr(0, strlen(buffer)-1);
+                std::cout << dcrypt(tempbuff) << std::endl;
                 memset(&buffer, 0x00, sizeof(buffer));
             }
         }
