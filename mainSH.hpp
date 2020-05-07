@@ -223,12 +223,7 @@ struct mainsh{
 
             else if(arg == "sudo"){
                 std::string su_cmd = cmd.substr(5, cmd.length()); // super user command
-                
-                /*
-                std::cout << "[sudo] password for " << str_name << ": ";
-
-                std::getline(std::cin, pw);
-                */
+               
                 std::string str = "[sudo] password for " + std::string(str_name) + ": ";
                 char* pw = getpass(str.c_str());
 
