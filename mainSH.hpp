@@ -24,9 +24,15 @@
 struct mainsh{
     std::vector<std::string> logs; // stores all the previous commands and exact time
 
-    char client_name[30];
-    char client_hostname[30];
-    char dir[30];
+    bool ispw = false; // used to mask password in logs
+    std::string maskedpw; // masked password to store in logs
+
+    std::string alphabet = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+    std::string str = "gjewklmzusnvqpycthrifxbdao DWKISFOGNUQZXBYCEVRLMAHPJT6547812390";
+
+    std::string str_name = "";
+    std::string str_hostname = "";
+    std::string str_dir = "";
 
     int bytes_red = 0;
     int bytes_written = 0;
@@ -34,12 +40,7 @@ struct mainsh{
     int* serverptr;
 
     int global_socket;
-
-    bool ispw = false; // used to mask password in logs
-    std::string maskedpw; // masked password to store in logs
-
-    std::string alphabet = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-    std::string str = "gjewklmzusnvqpycthrifxbdao DWKISFOGNUQZXBYCEVRLMAHPJT6547812390";
+    
 
     // this encryption method is designed to provide a basic layer of security against packet sniffing
     // without encryption everyone could see the data sent (which includes password)
@@ -95,11 +96,10 @@ struct mainsh{
     }
 
     void view_logs(){
-        for(unsigned int p = 0; p < logs.size(); p++){
-            std::cout << logs[p] << std::endl;
-        }
+        for(unsigned int p = 0; p < logs.size(); p++){ std::cout << logs[p] << std::endl; }
     }
 
+    
     void disconnect(){
         char disconnect[strlen("disconnect")+1];
         std::string ndisc = ncrypt("disconnect");
@@ -128,7 +128,7 @@ struct mainsh{
         bytes_written += send(global_socket, (char*)&temp, strlen(temp), 0);
         std::string timer = "["+std::string(dt).substr(0, strlen(dt)-1)+"] ";
         if(ispw){
-            logs.push_back(timer + dcrypt(maskedpw));
+            logs.push_back(timer + maskedpw);
             ispw = false;
         }
         else{logs.push_back(timer + dcrypt(temp));}
@@ -177,37 +177,40 @@ struct mainsh{
         struct timeval start1, end1;
         gettimeofday(&start1, NULL);
 
+        char client_name[30];
+        char client_hostname[30];
+        char dir[30];
+
         memset(client_name, '\0', sizeof(client_name));
         memset(client_hostname, '\0', sizeof(client_hostname));
+        memset(dir, '\0', sizeof(dir));
 
-        char temp_name[30];
-        char temp_hostname[30];
-        char temp_dir[30];
+        bytes_red += recv(new_server_sd, (char*)&client_name, sizeof(client_name), 0); // account
+        bytes_red += recv(new_server_sd, (char*)&client_hostname, sizeof(client_hostname), 0); // hostname
+        bytes_red += recv(new_server_sd, (char*)&dir, sizeof(dir), 0); // directory
 
-        bytes_red += recv(new_server_sd, (char*)&temp_name, sizeof(temp_name), 0); // account
-        bytes_red += recv(new_server_sd, (char*)&temp_hostname, sizeof(temp_hostname), 0); // hostname
-        bytes_red += recv(new_server_sd, (char*)&temp_dir, sizeof(temp_dir), 0); // directory
-        //dcrypt buffers
-        strcpy(client_name, dcrypt(temp_name).c_str());
-        strcpy(client_hostname, dcrypt(temp_hostname).c_str());
-        strcpy(dir, dcrypt(temp_dir).c_str());
+        //drcrypt buffers (strlen(var)-1 is to remove \n)
+        std::string dcrypt_name = (dcrypt(std::string(client_name))).substr(0, strlen(client_name)-1);
+        std::string dcrypt_hostname = (dcrypt(std::string(client_hostname))).substr(0, strlen(client_hostname)-1);
+        std::string dcrypt_dir = (dcrypt(std::string(dir))).substr(0, strlen(dir)-1);
 
-        std::cout << "[+] received connection from " <<  std::string(client_hostname).substr(0, strlen(client_hostname)-1) << std::endl;
-        
+        str_name = dcrypt_name;
+        str_hostname = dcrypt_hostname;
+        str_dir = dcrypt_dir;
+
+        std::cout << "[+] received connection from " <<  str_hostname << std::endl;
+
         struct hostent *getipv4; //gethostbyname returns a pointer of type hostent
-        getipv4 = gethostbyname((std::string(client_hostname).substr(0, strlen(client_hostname)-1)).c_str() );
+        getipv4 = gethostbyname(str_hostname.c_str());
         printf("[?] client addr: %s\n", inet_ntoa(*(struct in_addr*)getipv4->h_addr));
-
+        
         return ptr_serversd;
-    }
+    } 
 
     void createsh(){
         char buffer[1500];
 
         std::string cmd;
-        std::string str_dir = std::string(dir).substr(0, strlen(dir)-1);
-        std::string str_name = std::string(client_name).substr(0, strlen(client_name)-1);
-        std::string str_hostname = std::string(client_hostname).substr(0, strlen(client_hostname)-1);
         // do something about write-protected directory (IMPORTANT)
 
         while(true){
@@ -223,7 +226,12 @@ struct mainsh{
 
             else if(arg == "sudo"){
                 std::string su_cmd = cmd.substr(5, cmd.length()); // super user command
-               
+                
+                /*
+                std::cout << "[sudo] password for " << str_name << ": ";
+
+                std::getline(std::cin, pw);
+                */
                 std::string str = "[sudo] password for " + std::string(str_name) + ": ";
                 char* pw = getpass(str.c_str());
 
@@ -271,6 +279,5 @@ struct mainsh{
 
 
 };
-
 
 #endif
