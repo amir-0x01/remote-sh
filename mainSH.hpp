@@ -43,7 +43,6 @@ struct mainsh{
     
 
     // this encryption method is designed to provide a basic layer of security against packet sniffing
-    // without encryption everyone could see the data sent (which includes password)
     std::string ncrypt(std::string target){
         std::string encrypted;
         std::map <char, char> nmap;
