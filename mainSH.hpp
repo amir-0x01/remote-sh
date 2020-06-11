@@ -11,6 +11,8 @@
 #include <vector>
 #include <ctime>
 #include <map>
+#include <signal.h> // used to handle SIGPIPE
+#include <fstream>
 
 //NETWORKING
 #include <unistd.h>
@@ -21,6 +23,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#define BUFFER_SIZE 4096
+#define DOWNLOAD_DIR "/home/user/Downloads" // download directory
+
 struct mainsh{
     std::vector<std::string> logs; // stores all the previous commands and exact time
 
@@ -30,9 +35,9 @@ struct mainsh{
     std::string alphabet = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
     std::string str = "gjewklmzusnvqpycthrifxbdao DWKISFOGNUQZXBYCEVRLMAHPJT6547812390";
 
-    std::string str_name = "";
-    std::string str_hostname = "";
-    std::string str_dir = "";
+    std::string str_name;
+    std::string str_hostname;
+    std::string str_dir;
 
     int bytes_red = 0;
     int bytes_written = 0;
@@ -43,6 +48,7 @@ struct mainsh{
     
 
     // this encryption method is designed to provide a basic layer of security against packet sniffing
+    // without encryption everyone could see the data sent (which includes password)
     std::string ncrypt(std::string target){
         std::string encrypted;
         std::map <char, char> nmap;
@@ -89,19 +95,21 @@ struct mainsh{
     
     }
 
+    // sleeps for five seconds
     void tempsleep(){
         std::chrono::seconds duration(5);
         std::this_thread::sleep_for(duration);
     }
 
+    // prints previous commands
     void view_logs(){
         for(unsigned int p = 0; p < logs.size(); p++){ std::cout << logs[p] << std::endl; }
     }
 
-    
-    void disconnect(){
-        char disconnect[strlen("disconnect")+1];
-        std::string ndisc = ncrypt("disconnect");
+    // closes the socket based on argument
+    void disconnect(const char arg[]){
+        char disconnect[strlen(arg)+1];
+        std::string ndisc = ncrypt(arg);
         strcpy(disconnect, ndisc.c_str());
 
         bytes_written += send(global_socket, (char*)&disconnect, strlen(disconnect), 0);
@@ -116,6 +124,7 @@ struct mainsh{
         exit(1);
     }
 
+    // sends buffer to socket and stores it in logs
     void send_bytes(std::string buffer){
         char temp[buffer.length()+1];
         strcpy(temp, ncrypt(buffer).c_str());
@@ -136,7 +145,7 @@ struct mainsh{
 
     // creates socket and return pointer
     int* create_socket(unsigned int PORT){
-        
+        signal(SIGPIPE, SIG_IGN); // used to handle SIGPIPE, if not ignored it crashes
         char hostname[HOST_NAME_MAX];
         gethostname(hostname, HOST_NAME_MAX);
 
@@ -205,9 +214,9 @@ struct mainsh{
         
         return ptr_serversd;
     } 
-
+    // creates the interactive shell
     void createsh(){
-        char buffer[1500];
+        char buffer[BUFFER_SIZE];
 
         std::string cmd;
         // do something about write-protected directory (IMPORTANT)
@@ -217,8 +226,9 @@ struct mainsh{
             std::getline(std::cin, cmd);
 
             std::string arg = cmd.substr(0, cmd.find(" "));
-
-            if(cmd == "disconnect"){ disconnect();} // close connection
+            // a lot of else if
+            if(cmd == "disconnect"){ disconnect("disconnect");} // close connection (secondsh still on)
+            else if(cmd == "stoprocess"){ disconnect("stoprocess");} // close connection (secondsh goes off)
             else if(cmd == "logs"){view_logs();}
             else if(cmd == "clear" || cmd == "cls"){system("clear");}
             else if(cmd.length() == 0){continue;}
@@ -259,6 +269,24 @@ struct mainsh{
                     str_dir = next_dir;
                 }
                 memset(&buffer, 0x00, sizeof(buffer));
+            }
+
+            else if(arg == "download"){
+                std::string file_cmd = "touch " + std::string(DOWNLOAD_DIR) + cmd.substr(9, cmd.length());
+                std::string f = std::string(DOWNLOAD_DIR) + "/" + cmd.substr(9, cmd.length());
+                std::cout << "file downloaded at: " << f << std::endl;
+                send_bytes(cmd);
+                bytes_red += recv(global_socket, (char*)&buffer, sizeof(buffer), 0);
+                system(file_cmd.c_str());
+                
+                std::ofstream file;
+                file.open(f);
+                file << dcrypt(buffer);
+                file << "\n";
+                file.close();
+                
+                
+                
             }
 
             else{
