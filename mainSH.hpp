@@ -14,9 +14,6 @@ struct mainsh{
     bool ispw = false; // used to mask password in logs
     std::string maskedpw; // masked password to store in logs
 
-    std::string alphabet = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-    std::string str = "gjewklmzusnvqpycthrifxbdao DWKISFOGNUQZXBYCEVRLMAHPJT6547812390";
-
     std::string str_name;
     std::string str_hostname;
     std::string str_dir;
@@ -27,63 +24,8 @@ struct mainsh{
     int* serverptr;
 
     int global_socket;
-    
 
-    // this encryption method is designed to provide a basic layer of security against packet sniffing
-    // without encryption everyone could see the data sent (which includes password)
-    std::string ncrypt(std::string target){
-        std::string encrypted;
-        std::map <char, char> nmap;
-        int pos = 0;
 
-        for(char c : alphabet){
-            nmap[c] = str.at(pos);
-            pos++;
-            
-        }
-        const char* quote = "'";
-        for(char l : target){
-            if((int) nmap[l] == 0 && l != *quote){encrypted.push_back(l);}
-
-            else{encrypted.push_back(nmap[l]);}
-            
-        }
-        return encrypted;
-
-    }
-
-    std::string dcrypt(std::string target){
-        std::string decrypted;
-        std::map <char, char> nmap;
-        int pos = 0;
-
-        for(char c : str){
-            nmap[c] = alphabet.at(pos);
-            pos++;
-            
-        }
-
-        const char* quote = "'";
-        for(char l : target){
-            
-            if((int)l == 0){decrypted.push_back(*quote);}
-
-            else if((int) nmap[l] == 0){decrypted.push_back(l);}
-            
-            else{decrypted.push_back(nmap[l]);} 
-        }
-
-        return decrypted;
-    
-    }
-
-    // sleeps for five seconds
-    void tempsleep(){
-        std::chrono::seconds duration(5);
-        std::this_thread::sleep_for(duration);
-    }
-    
-    // used to get terminal output
     std::string system_output(std::string cmd) {
         std::string data;
         FILE * stream;
@@ -97,7 +39,7 @@ struct mainsh{
             if(fgets(buffer, BUFFER_SIZE, stream) != NULL){ data.append(buffer);}
         }
         pclose(stream);
-            
+                
         }
         return data;
  
@@ -128,7 +70,6 @@ struct mainsh{
 
     void help(){
 
-
     }
 
     // sends buffer to socket and stores it in logs
@@ -148,22 +89,6 @@ struct mainsh{
         }
         else{logs.push_back(timer + dcrypt(temp));}
         
-    }
-
-    // used to split string
-    template<typename out>
-    void split(const std::string &s, char delim, out result) {
-        std::stringstream ss(s);
-        std::string item;
-        while (std::getline(ss, item, delim)) {
-            *(result++) = item;
-        }
-    }
-
-    std::vector<std::string> split(const std::string &s, char delim) {
-        std::vector<std::string> elems;
-        split(s, delim, std::back_inserter(elems));
-        return elems;
     }
 
     // creates socket and return pointer
@@ -287,7 +212,7 @@ struct mainsh{
                 send_bytes("dir " + next_dir);
 
                 bytes_red += recv(global_socket, (char*)&buffer, sizeof(buffer), 0);
-                std::cout << std::string(buffer).substr(0, strlen(buffer)-1) << std::endl;
+                // std::cout << dcrypt(std::string(buffer).substr(0, strlen(buffer)-1)) << std::endl;
                 std::string err = "dir: cannot access '"+next_dir+"': No such file or directory";
 
                 if(std::string(buffer).substr(0, strlen(buffer)-1) != err){
