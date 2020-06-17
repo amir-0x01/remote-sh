@@ -15,57 +15,6 @@ struct secondsh{
     unsigned int PORT_ = (int) NULL;
     std::string hostname_;
 
-    std::string alphabet = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
-    std::string str = "gjewklmzusnvqpycthrifxbdao DWKISFOGNUQZXBYCEVRLMAHPJT6547812390";
-
-    // this encryption method is designed to provide a basic layer of security against packet sniffing
-    // without encryption everyone could see the data sent (which includes password)
-    std::string ncrypt(std::string target){
-        std::string encrypted;
-        std::map <char, char> nmap;
-        int pos = 0;
-
-        for(char c : alphabet){
-            nmap[c] = str.at(pos);
-            pos++;
-            
-        }
-        const char* quote = "'";
-        for(char l : target){
-            if((int) nmap[l] == 0 && l != *quote){encrypted.push_back(l);}
-
-            else{encrypted.push_back(nmap[l]);}
-            
-        }
-        return encrypted;
-
-    }
-
-    std::string dcrypt(std::string target){
-        std::string decrypted;
-        std::map <char, char> nmap;
-        int pos = 0;
-
-        for(char c : str){
-            nmap[c] = alphabet.at(pos);
-            pos++;
-            
-        }
-
-        const char* quote = "'";
-        for(char l : target){
-
-            if((int)l == 0){decrypted.push_back(*quote);}
-
-            else if((int) nmap[l] == 0){decrypted.push_back(l);}
-            
-            else{decrypted.push_back(nmap[l]);} 
-        }
-
-        return decrypted;
-    
-    }
-
     std::string system_output(std::string cmd) {
         std::string data;
         FILE * stream;
@@ -79,26 +28,10 @@ struct secondsh{
             if(fgets(buffer, BUFFER_SIZE, stream) != NULL){ data.append(buffer);}
         }
         pclose(stream);
-            
+                
         }
         return data;
  
-    }
-
-     // used to split string
-    template<typename Out>
-    void split(const std::string &s, char delim, Out result) {
-        std::stringstream ss(s);
-        std::string item;
-        while (std::getline(ss, item, delim)) {
-            *(result++) = item;
-        }
-    }
-
-    std::vector<std::string> split(const std::string &s, char delim) {
-        std::vector<std::string> elems;
-        split(s, delim, std::back_inserter(elems));
-        return elems;
     }
 
     int* connect_socket(unsigned int PORT, const std::string hostname){
