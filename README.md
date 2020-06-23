@@ -1,6 +1,8 @@
 # local-reverse-shell
 A reverse shell that allows you to execute comands remotely on the same network.
 
+./mainsh [port] && ./secondsh [port] [host]
+
 Commands:
 - disconnect, ends the socket however secondSH is still listening
 - stoprocess, ends the socket and terminates secondSH
