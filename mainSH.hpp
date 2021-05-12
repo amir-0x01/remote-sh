@@ -6,7 +6,7 @@
 #include "utils.hpp"
 
 const unsigned int BUFFER_SIZE = 9999;
-std::string DOWNLOAD_DIR = "/home/amir/Downloads";
+std::string DOWNLOAD_DIR = "~/Downloads";
 
 struct mainsh{
     std::vector<std::string> logs; // stores all the previous commands and exact time
