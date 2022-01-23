@@ -1,5 +1,5 @@
 # local-reverse-shell
-A reverse shell that allows you to execute comands remotely on the same network.
+Simple remote shell
 
 ./mainsh [port] && ./secondsh [port] [host]
 
