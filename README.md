@@ -1,4 +1,4 @@
-# local-reverse-shell
+# remote-shell
 Simple remote shell
 
 ./mainsh [port] && ./secondsh [port] [host]
