@@ -268,8 +268,6 @@ struct mainsh{
 
                 catch(...){ std::cout << "[-] unfortunately that didn't work out..." << std::endl;}
             }
-            
-            else if(arg == "help"){ help();}
 
             // sends command
             else{
