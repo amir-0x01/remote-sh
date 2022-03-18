@@ -68,10 +68,6 @@ struct mainsh{
         exit(1);
     }
 
-    void help(){
-
-    }
-
     // sends buffer to socket and stores it in logs
     void send_bytes(std::string buffer){
         char temp[buffer.length()+1];
