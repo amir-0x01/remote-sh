@@ -1,6 +1,9 @@
 # remote-shell
 Simple remote shell
 
+This was written when learning socket programming in C++.
+This should not be used in a production environment, and contains known vulnerabilities.
+
 ./mainsh [port] && ./secondsh [port] [host]
 
 Commands:
